@@ -1,4 +1,4 @@
-# Name That LLM: handoff (last updated 2026-11-09, ~15:00 local)
+# Name That LLM: handoff (last updated 2026-11-09, evening; sections 9-11 are the newest)
 
 Read this first when resuming. Detailed notes also live in Claude's memory folder
 `/home/rohan/.claude/projects/-home-rohan-kagglecomp/memory/` (index: MEMORY.md; the submission log is `competition-submission-rules.md`,
@@ -94,3 +94,65 @@ Always `export KAGGLE_CONFIG_DIR=/home/rohan/kagglecomp` (the `kaggle.json` ther
 - `notebooks/` all Kaggle notebooks (submission_native is the current best); `kaggle_push/` push folders with kernel-metadata.json.
 - `public_notebooks/` downloaded public notebooks (`ntl-680-lightning-v2` = native-expert stack, `0-673-i-m-better` = areebbb NTL-22c, others). `public_assets/` small pieces of public datasets (native_q8, native_wemm4, prefit).
 - Result folders: `kaggle_results_*` (pulled kernel outputs; `kaggle_results_subnative2` is v5's commit output), `experiments/results_style/`.
+
+## 9. Update 2026-11-09 evening: the L24 expert (step A, started)
+- Wrote `experiments/l24_worker.py` (own port of the public L24 inference: base truncated to the first 24 layers for Qwen3-8B-Base, fp32 low-rank LoRA path, 8 pooled depths + LayerNorm, plain and centred heads)
+  and `experiments/l24_fusion.py`. Unit-tested on a tiny random Qwen3 against a merged-weights reference (logit diff 0.004, 100% argmax agreement).
+- Probe `chiefkeef999/ntl-l24-probe` (24 min for 5 adapters x 2,699 rows, 4.7 min per adapter): the adapter dataset does not say which prompts each fold held out, but the held-out fold of each adapter is
+  recoverable (each adapter is the worst, by loss, on exactly 30 prompts; held-out loss 1.09 vs 0.37 elsewhere). Their folds are NOT the native expert's folds. Assignment saved in `experiments/cache/q8v5_fold_of_row.npy`,
+  out-of-fold scores in `experiments/cache/q8v5_oof.npz`.
+- Out-of-fold balanced accuracy of q8v5: plain 0.615, centred head with true groups 0.667 (estimated groups 0.665). Native expert alone 0.681. **Native + q8v5 (centred) at 50/50: 0.704, +0.023 over native alone
+  (95% interval +0.013 to +0.033)**; the two agree on 68.5% of rows. On the 539 stage-2 held-out rows: current recipe 0.703 -> 0.717-0.721 with q8v5 added (interval includes 0 at that size). Script: `experiments/l24_blend_local.py`.
+- New notebook `notebooks/submission_l24.ipynb` (builder `experiments/build_notebooks/build_sub_l24.py`, kernel `chiefkeef999/ntl-submission-l24`): v5 + q8v5. Final blend 0.30 parent + 0.35 native + 0.35 L24, each z-scored.
+  Datasets/models it needs: `dhruvtibarewal/nlm-l24-adapters-v5` and `qwen-lm/qwen-3/transformers/8b-base/1` on top of v5's inputs.
+- 14B probe `chiefkeef999/ntl-l24-probe-q14` (q14v5, keep 27 layers, bs 8) launched the same way; if its out-of-fold result is as good, add it as a second L24 expert (the notebook's `experts` list is built for that).
+- Not yet done: ll8v5 (Llama-3.1-8B; base is in the lightningv08 dataset folder `llama31-prefix24`), the Gaussian prompt heads (`gsq120k-trained/.../gaussian/*`), the final (all-rows) adapter `q8v5`.
+
+## 10. Update 2026-11-09 afternoon: q14v5 and the three-expert submission
+- **Kaggle allows only ONE GPU notebook at a time on this account** (user, 2026-11-09). Pushed kernels queue behind each other (my L24 commit run sat QUEUED ~1 h behind a 44-min probe). Push one at a time and check `kaggle kernels status` first.
+- q14v5 (Qwen3-14B-Base, first 27 of 40 layers, `experiments/l24_worker.py --keep 27 --bs 8`): probe `chiefkeef999/ntl-l24-probe-q14`, 8.6 min per adapter per 2,699 rows (44 min for 5). Fold assignment recovered by loss as for q8v5
+  (30 prompts each, loss gap 0.70), saved in `experiments/cache/q14v5_fold_of_row.npy`. Out of fold with estimated groups: centred head **0.680** (native 0.681, q8v5 0.665), plain 0.635.
+  Native + q14v5 50/50 0.713 (+0.032). Native + q8v5 + q14v5 equal weights **0.722**, +0.019 over native + q8v5 (CI +0.011 to +0.028). Model agreement 68-74%. Script: `experiments/l24_blend3_local.py`.
+- Notebooks (builder `experiments/build_notebooks/build_sub_l24.py`, `--q14` adds the 14B expert): `notebooks/submission_l24.ipynb` (parent .30 / native .35 / q8v5 .35; kernel `chiefkeef999/ntl-submission-l24`, commit clean, NOT submitted) and
+  `notebooks/submission_l24_q14.ipynb` (parent .20 / native .2667 / q8v5 .2667 / q14v5 .2667; kernel `chiefkeef999/ntl-submission-l24-q14`). Both commit runs clean on the 3-row stub (~13.5 min parent + 1.3 min native + 0.9 min q8v5 + 1.3 min q14v5).
+- **Submission 7: ref 58165598, kernel ntl-submission-l24-q14 v1, submitted 2026-11-09 13:23 UTC, result pending.** Expect the scoring rerun to take ~3 h (parent ~25 min, native ~60, q8v5 ~35, q14v5 ~65); it does not count against quota.
+  If it errors in scoring, fall back to submitting `ntl-submission-l24` (q8v5 only). 3 slots were left after it.
+- Still not done: ll8v5 (Llama-3.1-8B; base lives in the lightningv08 dataset folder `llama31-prefix24`), the Gaussian prompt heads, final all-rows adapters, `NATIVE`/`L24` weight retuning, committing the new files to git.
+
+## 11. Moving to a GPU cluster (A100 / RTX 6000 Pro): read this on the cluster
+**Setup (about 10 minutes plus downloads):**
+```
+git clone https://github.com/RohanRamesh21/namethellm.git && cd namethellm
+bash scripts/setup_cluster.sh                 # venv + packages; set TORCH_INDEX=https://download.pytorch.org/whl/cuXXX to match the cluster's CUDA
+# put your Kaggle API token in ~/.kaggle/kaggle.json (chmod 600) or export KAGGLE_USERNAME / KAGGLE_KEY. Never commit it.
+# accept the competition rules once on kaggle.com, then:
+. .venv/bin/activate
+bash scripts/fetch_assets.sh data small       # competition files + native expert metadata/OOF scores (a few MB)
+bash scripts/fetch_assets.sh native l24 hf    # adapters (3.5 GB) and base models (about 60 GB: check disk/quota first; the Hugging Face repos are public)
+```
+`scripts/fetch_assets.sh` modes: data, small, native, l24, svc4, hf, all. Paths are the same as on the laptop (`name-that-llm/`, `public_assets/`, `models/`), so the scripts in `experiments/` work unchanged. Not in the repo by design: `kaggle.json`, the competition data, other authors' files.
+Scripts that read pulled Kaggle outputs expect them under `kaggle_results_*/` (for example `l24_blend_local.py` reads `kaggle_results_l24/q8v5_official.npz`); on the cluster write worker outputs to those paths or edit the paths.
+
+**Hard constraint that does not change.** This is a code competition. Every submission is a Kaggle notebook (internet off, 9 h, 2 x T4 15 GB or P100) that reads its weights from Kaggle datasets or models. Anything trained on the cluster must be uploaded (`kaggle datasets create -p DIR`, then attached to the notebook), and its inference must finish on Kaggle's T4s inside the time limit alongside everything else (the current v7 budget is about 3 h). Cluster speed does not carry over, so budget each added model by its Kaggle cost: native 8B about 60 min for 4,000 passages x 5 folds, q8v5 about 35 min, q14v5 about 65 min.
+The Kaggle weekly GPU quota (30 h) and the one-GPU-notebook-at-a-time rule apply to Kaggle runs only, not to the cluster.
+
+**Verify the ports on the new hardware first (10-20 min on one big GPU):**
+```
+python - <<'PYEND'
+import json, pandas as pd
+d = pd.read_csv('name-that-llm/train.csv'); rows = json.load(open('public_assets/native_q8/fold0/split.json'))['validation_rows']
+pd.DataFrame({'id': [str(i) for i in rows], 'text': d.text.fillna('').astype(str).iloc[rows].values}).to_csv('query_fold0.csv', index=False)
+PYEND
+python experiments/native_worker.py --base models/Qwen3-Embedding-8B --assets public_assets/native_q8 --query query_fold0.csv --out native_fold0.npz --work /tmp/native_work --folds 0
+# expect >= 99% argmax agreement with the author's stored scores in public_assets/native_q8/oof_reference.npz at those rows (plain head about 0.626 balanced accuracy)
+```
+`native_worker.py` now runs on one GPU with at least 22 GB (it still splits over two GPUs as on Kaggle). `l24_worker.py` sizes its memory budget from the card (13 GiB on 15 GB cards as on Kaggle, 85% of the card on big ones). L24 check: score all official rows with the five q8v5 fold adapters and run `experiments/l24_blend_local.py`; expect plain about 0.615 and centred about 0.665 out of fold. The Hugging Face copies of Qwen3-8B-Base and Qwen3-14B-Base are assumed identical to the Kaggle copies the adapters were trained against (not verified); the check above is what confirms it.
+
+**What the cluster is for (ranked; none of it started):**
+1. **Train our own experts at the scale Kaggle's quota blocked.** The public experts are far stronger than anything we trained (our Gemma 0.567 held-out, the 8B trained on official rows only 0.471) because they were pretrained on 100k+ external passages first. Training data: the Open Pool `crtproduction/name-that-llm-open-pool` (CC BY-SA 4.0), plus `dhruvtibarewal/nlm-pool-v5` and `nlm-matched-clean` (download with `kaggle datasets download`, check sizes first). The public notebooks ship inference only, so a training recipe has to be rebuilt. What is known:
+   - Native expert (`public_assets/native_q8/study.json`): Qwen3-Embedding-8B, LoRA rank 16 alpha 32 dropout 0.05 on q,k,v,o,gate,up,down; instruction prefix `Instruct: Identify the language model that generated the text based on its writing style.` then a newline and `Query: `; last-token pooling at depths (3,6,9,12,18,24,30,36), a LayerNorm each, depth 36 L2-normalised; plain and centred linear heads (centred coefficient 0.5 on official rows, 0 on external); 196,190 external rows x 2 epochs (6,132 updates, effective batch 64, adapter lr 2e-4 in that phase, head lr 5e-4), then 2 epochs on the 2,699 official rows (4 prompt groups per update, adapter lr 5e-5); label smoothing 0.05, weight decay 0.01, gradient clip 1.0, max length 512; five prompt folds. `experiments/native_small.py` is our 0.6B version of this idea (batches hold whole prompts so the centred head can be trained).
+   - L24 experts (`public_assets/l24/*/adapter_config.json` and `heads.pt`): base truncated to the first 24 layers (8B) or 27 (14B), LoRA rank 16 alpha 32 dropout 0.05 on all seven projections, mean pooling at layers (2,4,6,8,12,16,20,24) with the first token masked, a LayerNorm each, plain and centred heads, max 384 tokens, trained in two stages (pool, then official folds). Learning rates and epochs are not published.
+   A sensible first target: retrain the q8v5 recipe on the pool with prompt folds and compare its out-of-fold score with the public one (0.665 centred) using `experiments/l24_blend_local.py`. Only then scale up.
+2. **Finish the cheap public-expert additions with clean checks:** ll8v5 (Llama-3.1-8B; its base weights are in the lightningv08 dataset folder `llama31-prefix24`), the Gaussian prompt heads (`gsq120k-trained/gsq120k-inference/gaussian/*`), and the final all-rows adapters. Score each out of fold exactly as q8v5 and q14v5 were (sections 9 and 10).
+3. **Retune the blend weights** with all out-of-fold scores in one place (native, q8v5 and q14v5 exist for all 2,699 rows; the parent only for 539).
+Current best submission and its pending result are in sections 2 and 10; run `kaggle competitions submissions name-that-llm` first.

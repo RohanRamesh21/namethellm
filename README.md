@@ -6,6 +6,9 @@ offline notebook, hidden test of about 4,000 passages). Best public leaderboard 
 **Start with [HANDOFF.md](HANDOFF.md)**: current state, how the best submission works, what was tested (with numbers), ranked next steps,
 Kaggle CLI commands and gotchas.
 
+## Quickstart on a new machine (for example a GPU cluster)
+`bash scripts/setup_cluster.sh`, add a Kaggle API token, then `bash scripts/fetch_assets.sh data small native l24 hf`. Details and what to do next: HANDOFF.md section 11.
+
 ## Layout
 - `experiments/` pipeline and study scripts. Main ones: `ntl_pipeline.py` (parent blend), `native_worker.py` and `native_fusion.py` (inference port of a public
   Qwen3-Embedding-8B expert), `score_gemma.py`, `svc4_readout.py` with `safe_joblib.py`, `build_notebooks/` (regenerates the Kaggle notebooks).

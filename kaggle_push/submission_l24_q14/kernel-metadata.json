@@ -1,0 +1,29 @@
+{
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": "true",
+ "enable_tpu": "false",
+ "dataset_sources": [
+  "lightningv08/ntl-olmo2-native24-final-inference-assets",
+  "dhruvtibarewal/nlm-l24-adapters-v5"
+ ],
+ "model_sources": [
+  "qwen-lm/qwen-3-embedding/transformers/8b/1",
+  "qwen-lm/qwen-3/transformers/8b-base/1",
+  "qwen-lm/qwen-3/transformers/14b-base/1"
+ ],
+ "id": "chiefkeef999/ntl-submission-l24-q14",
+ "title": "ntl submission l24 q14",
+ "code_file": "submission_l24_q14.ipynb",
+ "enable_gpu": "true",
+ "enable_internet": "false",
+ "machine_shape": "NvidiaTeslaT4",
+ "competition_sources": [
+  "name-that-llm"
+ ],
+ "kernel_sources": [
+  "chiefkeef999/notebook6fafdc1c20",
+  "chiefkeef999/ntl-stage-frozen-models",
+  "chiefkeef999/ntl-stage2-official"
+ ]
+}

@@ -1,0 +1,17 @@
+# Minimum versions the code was run with (local laptop: torch 2.13, transformers 5.15; Kaggle: torch 2.11, transformers 5.20, Python 3.12-3.13).
+# Install torch FIRST with the wheel that matches the cluster's CUDA (see scripts/setup_cluster.sh), then: pip install -r requirements.txt
+numpy>=1.26
+pandas>=2.2
+pyarrow>=15
+scipy>=1.13
+scikit-learn>=1.6
+joblib>=1.4
+torch>=2.8
+transformers>=5.0
+accelerate>=1.0        # device_map='auto' in the workers needs it
+peft>=0.17
+safetensors>=0.5
+huggingface_hub>=1.0   # provides the `hf` command used by scripts/fetch_assets.sh
+kaggle>=2.0            # CLI used to download data/datasets and to push/submit kernels
+nbformat>=5.9          # only for experiments/build_notebooks/*.py
+# Not needed on the cluster unless you retrain Gemma with Unsloth (the Kaggle training notebooks install it): unsloth, bitsandbytes

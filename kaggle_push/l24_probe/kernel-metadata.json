@@ -1,0 +1,16 @@
+{
+ "id": "chiefkeef999/ntl-l24-probe",
+ "title": "ntl l24 probe",
+ "code_file": "l24_probe.ipynb",
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": "true",
+ "enable_gpu": "true",
+ "enable_tpu": "false",
+ "enable_internet": "false",
+ "machine_shape": "NvidiaTeslaT4",
+ "dataset_sources": ["dhruvtibarewal/nlm-l24-adapters-v5"],
+ "model_sources": ["qwen-lm/qwen-3/transformers/8b-base/1"],
+ "competition_sources": ["name-that-llm"],
+ "kernel_sources": []
+}

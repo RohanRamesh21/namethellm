@@ -47,7 +47,11 @@ class Expert:
         torch.backends.cudnn.benchmark = False
         for key in ('allow_tf32', 'allow_fp16_reduced_precision_reduction', 'allow_bf16_reduced_precision_reduction'):
             setattr(torch.backends.cuda.matmul, key, False)
-        if torch.cuda.device_count() != 2: raise SystemExit(f'the expert needs two GPUs, found {torch.cuda.device_count()}')
+        # Two GPUs (Kaggle's 2 x T4 15 GB): the fp16 backbone (16.4 GB) is split over both. One GPU: it must hold the whole backbone plus activations (24 GB or more).
+        self.n_gpu = torch.cuda.device_count()
+        if self.n_gpu < 1: raise SystemExit('no GPU found')
+        if self.n_gpu == 1 and torch.cuda.get_device_properties(0).total_memory / 2**30 < 22:
+            raise SystemExit('a single GPU needs at least 22 GB for the 8B backbone in fp16; use two GPUs or a larger card')
         self.assets = Path(assets); base = Path(base)
         self.labels = json.loads((self.assets / 'manifest.json').read_text())['classes']
         index = json.loads((base / 'model.safetensors.index.json').read_text())
@@ -66,8 +70,9 @@ class Expert:
         if cfg['num_hidden_layers'] != 36 or cfg['hidden_size'] != 4096: raise SystemExit('unexpected backbone configuration')
         self.tok = AutoTokenizer.from_pretrained(stage, local_files_only=True); self.tok.padding_side = 'right'
         if self.tok.pad_token_id is None: self.tok.pad_token = self.tok.eos_token
-        placement = {'embed_tokens': 0, 'norm': 1, 'rotary_emb': 1}
-        placement.update({f'layers.{i}': 0 if i < 16 else 1 for i in range(36)})
+        last = 1 if self.n_gpu >= 2 else 0   # with two GPUs: layers 0-15 on GPU 0, layers 16-35 and the final norm on GPU 1 (unchanged from the Kaggle runs)
+        placement = {'embed_tokens': 0, 'norm': last, 'rotary_emb': last}
+        placement.update({f'layers.{i}': 0 if i < 16 or last == 0 else 1 for i in range(36)})
         self.model, info = AutoModel.from_pretrained(stage, local_files_only=True, torch_dtype=torch.float16, device_map=placement,
                                                      attn_implementation='sdpa', output_loading_info=True)
         if any(info.get(k) for k in ('missing_keys', 'mismatched_keys', 'error_msgs', 'unexpected_keys')): raise SystemExit(f'backbone did not load cleanly: {info}')
@@ -91,7 +96,7 @@ class Expert:
             self.slots.update({f'{prefix}.{n}': p for n, p in m.named_parameters()})
         if len(self.slots) != 524: raise SystemExit(f'expected 524 trainable tensors, found {len(self.slots)}')
         self.current = None
-        log('backbone and LoRA layout ready; GPU memory', [round(torch.cuda.memory_allocated(i) / 2**30, 1) for i in range(2)], 'GB')
+        log('backbone and LoRA layout ready; GPU memory', [round(torch.cuda.memory_allocated(i) / 2**30, 1) for i in range(torch.cuda.device_count())], 'GB')
 
     @torch.inference_mode()
     def load_fold(self, fold):
@@ -164,7 +169,7 @@ def main():
         np.savez(a.out, ids=frame.id.to_numpy(dtype=str), labels=np.asarray(expert.labels), folds=np.asarray(folds[:len(res['plain'])]),
                  plain=np.stack(res['plain']), centred=np.stack(res['centred']), centred_bias=np.stack(res['bias']))
     a.out.with_suffix('.json').write_text(json.dumps({'passages': len(texts), 'windows': len(wins), 'fold_seconds': timing, 'total_seconds': time.time() - T0,
-                                                     'peak_gb': [torch.cuda.max_memory_allocated(i) / 2**30 for i in range(2)]}, indent=1))
+                                                     'peak_gb': [torch.cuda.max_memory_allocated(i) / 2**30 for i in range(torch.cuda.device_count())]}, indent=1))
     log('done')
 
 
