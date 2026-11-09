@@ -1,0 +1,23 @@
+{
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": "true",
+ "enable_tpu": "false",
+ "dataset_sources": [],
+ "model_sources": [],
+ "id": "chiefkeef999/ntl-submission-multi",
+ "title": "ntl submission multi",
+ "code_file": "submission_multi.ipynb",
+ "enable_gpu": "true",
+ "enable_internet": "false",
+ "machine_shape": "NvidiaTeslaT4",
+ "competition_sources": [
+  "name-that-llm"
+ ],
+ "kernel_sources": [
+  "chiefkeef999/notebook6fafdc1c20",
+  "chiefkeef999/ntl-stage-frozen-models",
+  "chiefkeef999/ntl-stage2-official",
+  "chiefkeef999/ntl-native8-official"
+ ]
+}

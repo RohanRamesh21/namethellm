@@ -1,0 +1,21 @@
+{
+ "id": "chiefkeef999/ntl-native8-official",
+ "title": "ntl native8 official",
+ "code_file": "native8_official.ipynb",
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": "true",
+ "enable_gpu": "true",
+ "enable_tpu": "false",
+ "enable_internet": "true",
+ "machine_shape": "NvidiaTeslaT4",
+ "dataset_sources": [],
+ "model_sources": [],
+ "competition_sources": [
+  "name-that-llm"
+ ],
+ "kernel_sources": [
+  "chiefkeef999/notebook6fafdc1c20",
+  "chiefkeef999/ntl-stage2-official"
+ ]
+}

@@ -1,0 +1,35 @@
+# --- secrets: never commit ---
+kaggle.json
+.kaggle/
+*.env
+
+# --- competition data and rules (Kaggle's, not ours to redistribute) ---
+name-that-llm/
+name-that-llm.zip
+rules/
+results.zip
+
+# --- third-party material downloaded for study (public notebooks, public dataset pieces) ---
+public_notebooks/
+public_assets/
+
+# --- outputs pulled from Kaggle and derived arrays (regenerate with the commands in HANDOFF.md) ---
+kaggle_results*/
+experiments/cache/
+experiments/results_style/*.npy
+
+# --- large or binary artifacts ---
+*.npz
+*.npy
+*.parquet
+*.safetensors
+*.joblib
+*.pt
+*.bin
+*.zip
+
+# --- python / editor / local tooling ---
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.claude/

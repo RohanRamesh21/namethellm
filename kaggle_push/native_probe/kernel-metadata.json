@@ -1,0 +1,16 @@
+{
+ "id": "chiefkeef999/ntl-native-probe",
+ "title": "ntl native probe",
+ "code_file": "native_probe.ipynb",
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": "true",
+ "enable_gpu": "true",
+ "enable_tpu": "false",
+ "enable_internet": "false",
+ "machine_shape": "NvidiaTeslaT4",
+ "dataset_sources": ["lightningv08/ntl-olmo2-native24-final-inference-assets"],
+ "model_sources": ["qwen-lm/qwen-3-embedding/transformers/8b/1"],
+ "competition_sources": ["name-that-llm"],
+ "kernel_sources": []
+}

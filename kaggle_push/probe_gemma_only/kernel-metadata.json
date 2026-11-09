@@ -1,0 +1,21 @@
+{
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": "true",
+ "enable_tpu": "false",
+ "dataset_sources": [],
+ "model_sources": [],
+ "id": "chiefkeef999/ntl-probe-gemma-only",
+ "title": "ntl probe gemma only",
+ "code_file": "probe_gemma_only.ipynb",
+ "enable_gpu": "true",
+ "enable_internet": "false",
+ "machine_shape": "NvidiaTeslaT4",
+ "competition_sources": [
+  "name-that-llm"
+ ],
+ "kernel_sources": [
+  "chiefkeef999/notebook6fafdc1c20",
+  "chiefkeef999/ntl-stage-frozen-models"
+ ]
+}
